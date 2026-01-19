@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Affiche personnalisée</title>
+
+<style>
+/* ----- Corps de la page ----- */
+body{
+    margin:0;
+    padding:15px;
+    font-family: Arial, sans-serif;
+    text-align:center;
+    position: relative;
+    overflow: hidden;
+    background-image: url('logocedal.jpg'); /* Image de fond */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* Overlay pour contraste */
+body::before{
+    content: "";
+    position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background: rgba(0,0,0,0.3);
+    z-index:-1;
+}
+
+/* Titre */
+h3{
+    margin-bottom:20px;
+    color:#fff;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+/* ----- Canvas ----- */
+canvas#canvas{
+    width:100%;
+    max-width:420px;
+    background:#fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    border-radius: 20px;
+    margin-bottom: 20px;
+}
+
+/* ----- Boutons ----- */
+input, button{
+    margin:10px;
+    padding:12px 18px;
+    font-size:16px;
+    border-radius:10px;
+    border:none;
+}
+
+button{
+    cursor:pointer;
+    background: #6c63ff;
+    color:#fff;
+    font-weight:bold;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button:hover{
+    transform: scale(1.05);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+/* ----- Noms des réalisateurs ----- */
+#realisateurs{
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding: 0 20px;
+}
+
+#realisateurs .left p,
+#realisateurs .right p{
+    color: #ffd700; 
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 500;
+    margin:0;
+}
+
+#realisateurs .left{text-align:left;}
+#realisateurs .right{text-align:right;}
+#realisateurs .title{
+    text-decoration: underline;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<h3>Ajoute ta photo</h3>
+
+<input type="file" accept="image/*" id="photoInput">
+<br>
+<button onclick="download()">Télécharger</button>
+
+<canvas id="canvas"></canvas>
+
+<!-- Noms des réalisateurs (HTML seulement) -->
+<div id="realisateurs">
+    <div class="left">
+        <p><span class="title">Le graphiste :</span> AKINROME<br>(+229 01 91 19 39 29)</p>
+    </div>
+    <div class="right">
+        <p><span class="title">Le développeur web :</span> Bernard Olawalé ADEYEMI<br>(+229 01 65 79 89 42)</p>
+    </div>
+</div>
+
+<script>
+// ---- CONFIG CANVAS ----
+const AFFICHE_WIDTH = 1080;
+const AFFICHE_HEIGHT = 1080;
+const frame = {x:620, y:305, w:315, h:380, radius:40};
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = AFFICHE_WIDTH;
+canvas.height = AFFICHE_HEIGHT;
+
+let userPhoto = null;
+let afficheLoaded = false;
+
+// Chargement de l'affiche
+const affiche = new Image();
+affiche.src = "affiche.jpg"; // Assurez-vous que le fichier est dans le même dossier
+affiche.onload = () => {
+    afficheLoaded = true;
+    redrawCanvas();
+};
+
+// Ajouter photo
+document.getElementById("photoInput").addEventListener("change", e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const img = new Image();
+    img.onload = ()=>{
+        userPhoto = img;
+        redrawCanvas();
+    };
+    img.src = URL.createObjectURL(file);
+});
+
+// Dessin cadre arrondi
+function drawRoundedRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r);
+    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+}
+
+// Redessiner canvas
+function redrawCanvas(){
+    if(!afficheLoaded) return; // ne rien dessiner tant que l'affiche n'est pas chargée
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(affiche,0,0,AFFICHE_WIDTH,AFFICHE_HEIGHT);
+
+    if(userPhoto){
+        const rImg = userPhoto.width/userPhoto.height;
+        const rFrame = frame.w/frame.h;
+        let drawW, drawH, drawX, drawY;
+
+        if(rImg>rFrame){
+            drawH = frame.h;
+            drawW = drawH*rImg;
+            drawX = frame.x-(drawW-frame.w)/2;
+            drawY = frame.y;
+        } else {
+            drawW = frame.w;
+            drawH = drawW/rImg;
+            drawX = frame.x;
+            drawY = frame.y-(drawH-frame.h)/2;
+        }
+
+        ctx.save();
+        drawRoundedRect(ctx, frame.x, frame.y, frame.w, frame.h, frame.radius);
+        ctx.clip();
+        ctx.drawImage(userPhoto, drawX, drawY, drawW, drawH);
+        ctx.restore();
+    }
+
+    // Filigrane
+    ctx.fillStyle="rgba(0,0,0,0.2)";
+    ctx.font="bold 30px Arial";
+    ctx.textAlign="right";
+    ctx.fillText("JEL 2026", canvas.width-20, canvas.height-20);
+}
+
+// Télécharger
+function download(){
+    redrawCanvas();
+    const a = document.createElement("a");
+    a.download = "affiche_JEL_2026.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+}
+</script>
+
+</body>
+</html>
